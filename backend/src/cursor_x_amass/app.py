@@ -37,6 +37,10 @@ def create_app() -> FastAPI:
     def current_investigation() -> Investigation | None:
         return store.current()
 
+    @app.get("/api/investigations/current/pending")
+    def pending_search() -> dict | None:
+        return store.read_pending()
+
     @app.post("/api/investigations", response_model=Investigation)
     def create_investigation_route(payload: CreateInvestigationRequest) -> Investigation:
         try:

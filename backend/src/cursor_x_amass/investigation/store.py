@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 from pathlib import Path
+from typing import Any
 
 from cursor_x_amass.investigation.schemas import Investigation
 
@@ -28,13 +29,26 @@ def current() -> Investigation | None:
 def save(job: Investigation) -> Investigation:
     RUNTIME_DIR.mkdir(parents=True, exist_ok=True)
     STORE_PATH.write_text(job.model_dump_json(indent=2))
+    return job
+
+
+def write_pending(payload: dict[str, Any]) -> None:
+    RUNTIME_DIR.mkdir(parents=True, exist_ok=True)
+    PENDING_PATH.write_text(json.dumps(payload, indent=2))
+
+
+def read_pending() -> dict[str, Any] | None:
+    if not PENDING_PATH.exists():
+        return None
+    return json.loads(PENDING_PATH.read_text())
+
+
+def clear_pending() -> None:
     if PENDING_PATH.exists():
         PENDING_PATH.unlink()
-    return job
 
 
 def clear() -> None:
     if STORE_PATH.exists():
         STORE_PATH.unlink()
-    if PENDING_PATH.exists():
-        PENDING_PATH.unlink()
+    clear_pending()

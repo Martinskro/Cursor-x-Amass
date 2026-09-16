@@ -6,15 +6,6 @@ import {
 } from "../api.js";
 import { goHome, rememberQuery } from "./nav.js";
 
-const EVIDENCE_CARDS = [
-  { key: "biomedcore", label: "Papers" },
-  { key: "patentcore", label: "Patents" },
-  { key: "drugcore", label: "Molecules" },
-  { key: "genecore", label: "Genes" },
-  { key: "trialcore", label: "Clinical trials" },
-  { key: "regulatorycore", label: "Regulatory records" },
-];
-
 export function renderInvestigate(root, query) {
   rememberQuery(query);
 
@@ -37,9 +28,9 @@ export function renderInvestigate(root, query) {
         </div>
       </section>
       <ol class="timeline" id="timeline"></ol>
-      <section class="evidence" id="evidence" hidden></section>
+      <section class="results" id="results" hidden></section>
       <p class="note" id="note">
-        Each step completes only after that Amass search has returned.
+        One PatentCore search. This screen completes after that search returns.
       </p>
     </main>
   `;
@@ -60,7 +51,7 @@ export function renderInvestigate(root, query) {
 
   const title = root.querySelector("#investigate-title");
   const timeline = root.querySelector("#timeline");
-  const evidence = root.querySelector("#evidence");
+  const results = root.querySelector("#results");
   const note = root.querySelector("#note");
   let timer = 0;
   let stopped = false;
@@ -68,6 +59,113 @@ export function renderInvestigate(root, query) {
   function stop() {
     stopped = true;
     window.clearTimeout(timer);
+  }
+
+  function text(value) {
+    return value == null || value === "" ? "" : String(value);
+  }
+
+  function renderPatents(records, error) {
+    const block = document.createElement("section");
+    block.className = "result-block";
+    const heading = document.createElement("p");
+    heading.className = "examples-label";
+    heading.textContent = error
+      ? "PatentCore search failed"
+      : records.length
+        ? `Potentially relevant IP (${records.length})`
+        : "No PatentCore records returned";
+    block.append(heading);
+
+    if (error) {
+      const fail = document.createElement("p");
+      fail.className = "result-empty";
+      fail.textContent = error;
+      block.append(fail);
+      return block;
+    }
+
+    if (!records.length) {
+      const empty = document.createElement("p");
+      empty.className = "result-empty";
+      empty.textContent = "Amass returned no patents for this query.";
+      block.append(empty);
+      return block;
+    }
+
+    const list = document.createElement("ul");
+    list.className = "patent-list";
+    for (const record of records) {
+      const item = document.createElement("li");
+      item.className = "patent-card";
+      const number = text(record.publicationNumber);
+      const amassId = text(record.amassId);
+      const assignees = Array.isArray(record.assignees)
+        ? record.assignees.filter(Boolean).join(" · ")
+        : "";
+      item.innerHTML = `
+        <p class="patent-kicker"></p>
+        <h2 class="patent-title"></h2>
+        <p class="patent-meta"></p>
+        <p class="patent-abstract"></p>
+      `;
+      item.querySelector(".patent-kicker").textContent =
+        number || amassId || "PatentCore record";
+      item.querySelector(".patent-title").textContent =
+        text(record.title) || "Untitled patent";
+      const meta = [assignees, text(record.publicationDate), amassId]
+        .filter(Boolean)
+        .join(" · ");
+      const metaEl = item.querySelector(".patent-meta");
+      if (meta) {
+        metaEl.textContent = meta;
+      } else {
+        metaEl.remove();
+      }
+      const abstractEl = item.querySelector(".patent-abstract");
+      if (record.abstract) {
+        abstractEl.textContent = text(record.abstract);
+      } else {
+        abstractEl.remove();
+      }
+      list.append(item);
+    }
+    block.append(list);
+    return block;
+  }
+
+  function renderOrganizations(organizations) {
+    const block = document.createElement("section");
+    block.className = "result-block";
+    const heading = document.createElement("p");
+    heading.className = "examples-label";
+    heading.textContent = organizations.length
+      ? `Assignees (${organizations.length})`
+      : "No assignees derived";
+    block.append(heading);
+
+    if (!organizations.length) {
+      const empty = document.createElement("p");
+      empty.className = "result-empty";
+      empty.textContent = "No organization names were present on the retrieved patents.";
+      block.append(empty);
+      return block;
+    }
+
+    const list = document.createElement("ul");
+    list.className = "org-list";
+    for (const org of organizations) {
+      const item = document.createElement("li");
+      item.className = "org-card";
+      const count = org.sourceRecordIds?.length ?? 0;
+      item.innerHTML = `<strong></strong><span></span>`;
+      item.querySelector("strong").textContent = org.name;
+      item.querySelector("span").textContent =
+        count === 1 ? "1 patent" : `${count} patents`;
+      list.append(item);
+    }
+    block.append(list);
+    return block;
   }
 
   function renderJob(job) {
@@ -105,39 +203,24 @@ export function renderInvestigate(root, query) {
       }),
     );
 
-    const cards = EVIDENCE_CARDS.filter((card) => job.evidence[card.key]);
-    if (job.organizations.length) {
-      cards.push({ key: "organizations", label: "Organizations" });
-    }
-
-    if (!cards.length) {
-      evidence.hidden = true;
-      evidence.replaceChildren();
+    const patents = job.evidence.patentcore;
+    if (!patents) {
+      results.hidden = true;
+      results.replaceChildren();
     } else {
-      evidence.hidden = false;
-      evidence.innerHTML = `<p class="examples-label">Evidence retrieved</p>`;
-      const grid = document.createElement("ul");
-      grid.className = "metrics";
-      for (const card of cards) {
-        const count =
-          card.key === "organizations"
-            ? job.organizations.length
-            : (job.evidence[card.key]?.records ?? []).length;
-        const item = document.createElement("li");
-        item.className = "metric";
-        item.innerHTML = `<strong></strong><span></span>`;
-        item.querySelector("strong").textContent = String(count);
-        item.querySelector("span").textContent = card.label;
-        grid.append(item);
-      }
-      evidence.append(grid);
+      results.hidden = false;
+      results.replaceChildren(
+        renderPatents(patents.records ?? [], patents.error),
+        renderOrganizations(job.organizations ?? []),
+      );
     }
 
     if (job.status === "completed") {
       note.textContent =
-        "Counts are the records returned by this investigation, not corpus totals. Relevance ranking comes next.";
+        "These are the PatentCore records returned for this query, not a licensing opinion.";
     } else if (job.status === "error") {
-      note.textContent = "One or more Amass searches failed. Retrieved records below are still from Amass.";
+      note.textContent =
+        "The PatentCore search failed or timed out. Any records below still came from Amass.";
     }
   }
 
@@ -158,7 +241,7 @@ export function renderInvestigate(root, query) {
     } catch {
       note.textContent = "Could not reach the investigation service. Retrying…";
     }
-    timer = window.setTimeout(() => poll(id), 600);
+    timer = window.setTimeout(() => poll(id), 400);
   }
 
   async function boot() {
@@ -173,6 +256,9 @@ export function renderInvestigate(root, query) {
       }
       const job = await startInvestigation(query);
       renderJob(job);
+      if (job.status === "completed" || job.status === "error") {
+        return;
+      }
       poll(job.id);
     } catch (error) {
       if (error.code === "busy") {

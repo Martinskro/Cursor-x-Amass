@@ -1,9 +1,13 @@
+import { analyzeIdea } from "./api.js";
+import { EXAMPLE_IDEAS } from "./examples.js";
+import "./styles.css";
+
 const form = document.querySelector("#idea-form");
 const idea = document.querySelector("#idea");
 const count = document.querySelector("#char-count");
 const button = document.querySelector("#analyze-btn");
 const status = document.querySelector("#status");
-const examples = document.querySelectorAll(".example");
+const exampleList = document.querySelector("#example-list");
 
 const MAX = 2000;
 
@@ -15,6 +19,26 @@ function setStatus(message) {
   status.textContent = message;
 }
 
+function renderExamples() {
+  exampleList.replaceChildren(
+    ...EXAMPLE_IDEAS.map((text) => {
+      const item = document.createElement("li");
+      const chip = document.createElement("button");
+      chip.type = "button";
+      chip.className = "example";
+      chip.textContent = text;
+      chip.addEventListener("click", () => {
+        idea.value = text;
+        updateCount();
+        setStatus("");
+        idea.focus();
+      });
+      item.append(chip);
+      return item;
+    }),
+  );
+}
+
 idea.addEventListener("input", () => {
   updateCount();
   setStatus("");
@@ -24,15 +48,6 @@ idea.addEventListener("keydown", (event) => {
   if (event.key === "Enter" && (event.metaKey || event.ctrlKey)) {
     form.requestSubmit();
   }
-});
-
-examples.forEach((chip) => {
-  chip.addEventListener("click", () => {
-    idea.value = chip.dataset.idea ?? "";
-    updateCount();
-    setStatus("");
-    idea.focus();
-  });
 });
 
 form.addEventListener("submit", async (event) => {
@@ -48,15 +63,7 @@ form.addEventListener("submit", async (event) => {
   setStatus("Holding this idea for analysis.");
 
   try {
-    const response = await fetch("/api/analyze", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ idea: value }),
-    });
-    if (!response.ok) {
-      throw new Error(`Request failed (${response.status})`);
-    }
-    const data = await response.json();
+    const data = await analyzeIdea(value);
     setStatus(data.message);
   } catch {
     setStatus("Could not reach the analysis service. Try again in a moment.");
@@ -65,4 +72,5 @@ form.addEventListener("submit", async (event) => {
   }
 });
 
+renderExamples();
 updateCount();

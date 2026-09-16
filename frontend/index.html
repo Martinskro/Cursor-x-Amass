@@ -14,7 +14,6 @@
       href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:ital,wght@0,400;0,500;0,600&family=Instrument+Serif:ital@0;1&display=swap"
       rel="stylesheet"
     />
-    <link rel="stylesheet" href="/static/styles.css" />
   </head>
   <body>
     <div class="grain" aria-hidden="true"></div>
@@ -60,18 +59,14 @@
         </form>
 
         <p class="examples-label" id="examples-label">Try an example</p>
-        <ul class="examples" aria-labelledby="examples-label">
-          {% for example in examples %}
-          <li>
-            <button type="button" class="example" data-idea="{{ example }}">
-              {{ example }}
-            </button>
-          </li>
-          {% endfor %}
-        </ul>
+        <ul
+          class="examples"
+          id="example-list"
+          aria-labelledby="examples-label"
+        ></ul>
       </section>
     </main>
 
-    <script src="/static/app.js" type="module"></script>
+    <script type="module" src="/src/main.js"></script>
   </body>
 </html>

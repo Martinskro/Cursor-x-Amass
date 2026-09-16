@@ -1,8 +1,7 @@
 [project]
 name = "cursor-x-amass"
 version = "0.1.0"
-description = "Research → Opportunity — turn a scientific idea into a structured opportunity brief."
-readme = "README.md"
+description = "Research → Opportunity API"
 authors = [
     { name = "Martin Skrolsvik", email = "maskr1070@uib.no" }
 ]
@@ -10,8 +9,7 @@ requires-python = ">=3.12"
 dependencies = [
     "fastapi>=0.115.0",
     "uvicorn[standard]>=0.32.0",
-    "jinja2>=3.1.4",
-    "python-multipart>=0.0.17",
+    "pydantic>=2.0.0",
 ]
 
 [project.scripts]
@@ -20,6 +18,3 @@ cursor-x-amass = "cursor_x_amass:main"
 [build-system]
 requires = ["uv_build>=0.12.15,<0.13.0"]
 build-backend = "uv_build"
-
-[tool.uv.build-backend]
-source-include = ["templates/**", "static/**"]
